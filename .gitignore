@@ -107,3 +107,11 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Learn 3D: local/OS files
+.DS_Store
+.codex/
+/[Pp]rofilerCaptures/
+# Kết quả chạy trong Editor (sinh lại được); giữ README
+/[Rr]esults/*
+!/[Rr]esults/README.md
