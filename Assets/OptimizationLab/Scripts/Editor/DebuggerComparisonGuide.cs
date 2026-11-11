@@ -27,8 +27,8 @@ namespace OptimizationLab.Editor
         {
             if (lessonId != id) { lessonId = id; Reset(); }
             step = Mathf.Clamp(step, 0, StepCount - 1);
-            string a = id == "B02" ? "Rời" : id == "B03" ? "Thường" : "Tắt";
-            string b = id == "B02" ? "Ghép" : id == "B03" ? "Instancing" : "Bật";
+            string a = id == "B02" ? "Rời" : id == "B03" ? "Thường" : id == "B05" ? "Chung" : "Tắt";
+            string b = id == "B02" ? "Ghép" : id == "B03" ? "Instancing" : id == "B05" ? "Block" : "Bật";
             int sampleCount = LessonCount(id);
             var runner = UnityEngine.Object.FindFirstObjectByType<BenchmarkRunner>();
             bool ready = EditorApplication.isPlaying && runner != null && runner.Scenario != null && runner.Scenario.Id == id && !runner.IsBusy;
@@ -83,6 +83,7 @@ namespace OptimizationLab.Editor
             bool batching = id == "B02";
             bool instancing = id == "B03";
             bool dynamic = id == "B04";
+            bool material = id == "B05";
             if (step == 0)
             {
                 if (GUILayout.Button(pendingStart ? "Đang mở…" : "Bắt đầu chơi →", GUILayout.Height(40)) && !pendingStart) StartLesson(id);
@@ -96,7 +97,7 @@ namespace OptimizationLab.Editor
                     if (GUILayout.Button("Tắt debugger")) TutorialDebugger.Disable();
                     return;
                 }
-                BenchmarkVariant variant = step == 1 ? BenchmarkVariant.A : BenchmarkVariant.B;
+                BenchmarkVariant variant = step == 1 ? BenchmarkVariant.A : CompareVariant(id);
                 if (GUILayout.Button($"Chọn {(step == 1 ? a : b)} →", GUILayout.Height(40)))
                 {
                     runner.SetObjectCount(sampleCount);
@@ -128,7 +129,7 @@ namespace OptimizationLab.Editor
             }
             if (step == 4 || step == 5 || step == 9)
             {
-                BenchmarkVariant required = step == 9 ? BenchmarkVariant.B : BenchmarkVariant.A;
+                BenchmarkVariant required = step == 9 ? CompareVariant(id) : BenchmarkVariant.A;
                 if (runner.PreviewVariant != required)
                 {
                     EditorGUILayout.HelpBox($"Chế độ đã đổi. Quay lại bước chọn {(required == BenchmarkVariant.A ? a : b)}.", MessageType.Info);
@@ -140,7 +141,7 @@ namespace OptimizationLab.Editor
                     if (GUILayout.Button("Mở lại debugger và bấm Enable")) TutorialDebugger.Open();
                     return;
                 }
-                if (GUILayout.Button(step == 5 ? "Tôi thấy các dòng Draw Mesh →" : step == 9 ? (batching ? "Tôi thấy Static Batch →" : instancing ? "Tôi thấy Draw Mesh (instanced) →" : dynamic ? "Tôi thấy Draw Dynamic →" : "Tôi thấy SRP Batch →") : "Tôi thấy DrawOpaqueObjects →", GUILayout.Height(40))) MoveTo(step + 1);
+                if (GUILayout.Button(step == 5 ? "Tôi thấy các dòng Draw Mesh →" : step == 9 ? (batching ? "Tôi thấy Static Batch →" : instancing ? "Tôi thấy Draw Mesh (instanced) →" : dynamic ? "Tôi thấy Draw Dynamic →" : material ? "Tôi thấy Draw Mesh từng khối →" : "Tôi thấy SRP Batch →") : "Tôi thấy DrawOpaqueObjects →", GUILayout.Height(40))) MoveTo(step + 1);
                 return;
             }
             if (step == 6)
@@ -152,13 +153,14 @@ namespace OptimizationLab.Editor
             }
             if (step == 10)
             {
-                GUILayout.Label(batching ? "Ghép đã làm gì?" : instancing ? "Instancing đã làm gì?" : dynamic ? "Dynamic Batching đã làm gì?" : "SRP Batcher đã làm gì?", EditorStyles.boldLabel);
-                string right = batching ? "Gộp dữ liệu của các khối đứng yên" : instancing ? "Vẽ nhiều bản sao cùng mesh trong một lệnh" : dynamic ? "Ghép đỉnh các mesh nhỏ vào một bộ đệm, vẽ một lần" : "Giảm công chuẩn bị từng draw cho CPU";
-                string wrong = batching ? "Xoá bớt khối trong game" : instancing ? "Ghép tất cả khối thành một mesh lớn" : dynamic ? "Chắc chắn làm game nhanh hơn" : "Chỉ còn đúng 2 draw call";
+                GUILayout.Label(batching ? "Ghép đã làm gì?" : instancing ? "Instancing đã làm gì?" : dynamic ? "Dynamic Batching đã làm gì?" : material ? "MaterialPropertyBlock đã làm gì?" : "SRP Batcher đã làm gì?", EditorStyles.boldLabel);
+                string right = batching ? "Gộp dữ liệu của các khối đứng yên" : instancing ? "Vẽ nhiều bản sao cùng mesh trong một lệnh" : dynamic ? "Ghép đỉnh các mesh nhỏ vào một bộ đệm, vẽ một lần" : material ? "Đổi màu từng vật nhưng vật đó không đi SRP Batcher" : "Giảm công chuẩn bị từng draw cho CPU";
+                string wrong = batching ? "Xoá bớt khối trong game" : instancing ? "Ghép tất cả khối thành một mesh lớn" : dynamic ? "Chắc chắn làm game nhanh hơn" : material ? "Giảm bộ nhớ, không đổi cách vẽ" : "Chỉ còn đúng 2 draw call";
                 if (GUILayout.Button(right, GUILayout.Height(36))) MoveTo(11);
                 if (GUILayout.Button(wrong, GUILayout.Height(32)))
                     feedback = batching ? "Khối vẫn còn đủ. Chỉ cách gửi dữ liệu để vẽ thay đổi."
                         : instancing ? "Không ghép mesh (đó là Static Batching, B02). Instancing gửi MỘT mesh kèm danh sách vị trí."
+                        : material ? "Hình vẫn y hệt. Nhưng màu bằng block làm vật rời khỏi SRP Batcher: nhiều lệnh vẽ hơn."
                         : dynamic ? "Ít lệnh vẽ chưa chắc nhanh hơn: CPU phải tự biến đổi đỉnh mỗi frame. Chỉ máy đo mới trả lời."
                         : "Một dòng SRP Batch chứa nhiều draw. Số dòng không phải tổng draw call.";
                 return;
@@ -178,7 +180,7 @@ namespace OptimizationLab.Editor
         private void StartLesson(string id)
         {
             TutorialDebugger.Disable();
-            string path = id == "B02" ? OptimizationLabSceneGenerator.B02_SCENE : id == "B03" ? OptimizationLabSceneGenerator.B03_SCENE : id == "B04" ? OptimizationLabSceneGenerator.B04_SCENE : OptimizationLabSceneGenerator.B01_SCENE;
+            string path = id == "B02" ? OptimizationLabSceneGenerator.B02_SCENE : id == "B03" ? OptimizationLabSceneGenerator.B03_SCENE : id == "B04" ? OptimizationLabSceneGenerator.B04_SCENE : id == "B05" ? OptimizationLabSceneGenerator.B05_SCENE : OptimizationLabSceneGenerator.B01_SCENE;
             if (EditorApplication.isPlaying && UnityEngine.SceneManagement.SceneManager.GetActiveScene().path != path)
             { feedback = "Thoát Play rồi bấm Bắt đầu để đổi bài."; return; }
             if (!EditorApplication.isPlaying)
@@ -215,11 +217,13 @@ namespace OptimizationLab.Editor
         private void MoveTo(int next) { step = next; why = false; feedback = ""; frameStart = EditorApplication.timeSinceStartup; }
         private void Reset() { pendingStart = false; MoveTo(0); }
         /// <summary>Số khối mẫu của ảnh hướng dẫn mỗi bài.</summary>
-        internal static int LessonCount(string id) => id == "B02" ? 600 : id == "B04" ? 500 : 300;
+        internal static int LessonCount(string id) => id == "B02" ? 600 : id == "B04" || id == "B05" ? 500 : 300;
+
+        private static BenchmarkVariant CompareVariant(string id) => id == "B05" ? BenchmarkVariant.C : BenchmarkVariant.B;
 
         private static string Title(int s, string a, string b, string id)
         {
-            bool batching = id == "B02", instancing = id == "B03", dynamic = id == "B04";
+            bool batching = id == "B02", instancing = id == "B03", dynamic = id == "B04", material = id == "B05";
             switch (s) {
                 case 0: return "Nhìn máy vẽ một ảnh game";
                 case 1: return "1 thao tác: chọn " + a;
@@ -230,14 +234,14 @@ namespace OptimizationLab.Editor
                 case 6: return "Bấm Disable trước khi đổi";
                 case 7: return "Bây giờ chọn " + b;
                 case 8: return "Bấm Enable thêm lần nữa";
-                case 9: return batching ? "Tìm dòng Static Batch" : instancing ? "Tìm dòng Draw Mesh (instanced)" : dynamic ? "Tìm dòng Draw Dynamic" : "Tìm dòng SRP Batch";
+                case 9: return batching ? "Tìm dòng Static Batch" : instancing ? "Tìm dòng Draw Mesh (instanced)" : dynamic ? "Tìm dòng Draw Dynamic" : material ? "Tìm các dòng Draw Mesh" : "Tìm dòng SRP Batch";
                 case 10: return "Khác nhau ở đâu?";
-                default: return batching ? "Đổi thêm bộ nhớ để vẽ nhẹ hơn" : instancing ? "Một lệnh, nhiều bản sao" : dynamic ? "Ít lệnh vẽ, nhưng CPU làm thêm" : "Cùng draw, CPU chuẩn bị nhẹ hơn";
+                default: return batching ? "Đổi thêm bộ nhớ để vẽ nhẹ hơn" : instancing ? "Một lệnh, nhiều bản sao" : dynamic ? "Ít lệnh vẽ, nhưng CPU làm thêm" : material ? "Cùng hình, khác đường vẽ" : "Cùng draw, CPU chuẩn bị nhẹ hơn";
             }
         }
         private static string Caption(int s, string id)
         {
-            bool batching = id == "B02", instancing = id == "B03", dynamic = id == "B04";
+            bool batching = id == "B02", instancing = id == "B03", dynamic = id == "B04", material = id == "B05";
             switch (s) {
                 case 0: return "Frame = một ảnh game. Làm từng bước, không cần biết code.";
                 case 1: return "Bấm nút được khoanh vàng, hoặc nút lớn bên dưới.";
@@ -251,11 +255,13 @@ namespace OptimizationLab.Editor
                 case 9: return batching ? "Mở lại cùng nhóm. Nhiều Draw Mesh nay thành Static Batch."
                     : instancing ? "Mở lại cùng nhóm. Hàng trăm Draw Mesh nay chỉ còn vài dòng (instanced)."
                     : dynamic ? "Mở lại cùng nhóm. Hàng trăm Draw Mesh nay chỉ còn vài dòng Draw Dynamic."
+                    : material ? "Mở lại cùng nhóm. Vài dòng SRP Batch nay thành hàng trăm Draw Mesh, một dòng mỗi khối."
                     : "Mở RenderLoop.DrawSRPBatcher. Bên trong là SRP Batch.";
                 case 10: return "Trái: trước. Phải: sau. Khối trong game vẫn còn đủ.";
                 default: return batching ? "Ít việc vẽ hơn, nhưng mesh chiếm thêm RAM. Chỉ dùng cho vật đứng yên."
                     : instancing ? "Chỉ gộp được khi cùng mesh + cùng material. Khác mesh là tách nhóm."
                     : dynamic ? "Chỉ mesh nhỏ (dưới 300 đỉnh) cùng material mới ghép được. Phải đo CPU trên máy thật."
+                    : material ? "Dùng block để đổi màu rất tiện, nhưng tốn đường vẽ. Material riêng giữ SRP Batcher nhưng tốn RAM. Đo trên máy thật."
                     : "Ít dòng SRP Batch không có nghĩa là chỉ còn từng ấy draw call.";
             }
         }
@@ -265,6 +271,7 @@ namespace OptimizationLab.Editor
             if (s == 4 || s == 5) return "Draw là lệnh vẽ. Opaque nghĩa là vật đặc, không trong suốt. Chỉ nhìn nhóm khối; bỏ qua UI (giao diện) và depth (độ sâu).";
             if (id == "B02") return "Static Batching gom geometry của vật đứng yên vào bộ đệm chung. Material và pass vẫn chia công việc vẽ. Đừng di chuyển từng vật sau khi ghép.";
             if (id == "B03") return "Instancing gửi một mesh + một material kèm danh sách vị trí, GPU vẽ nhiều bản sao trong một lệnh. Mỗi dòng (instanced) vẽ nhiều khối cùng lúc; bấm một dòng sẽ thấy Mesh là Cube. Lab tắt SRP Batcher vì khi bật, URP ưu tiên SRP Batcher và bỏ qua instancing.";
+            if (id == "B05") return "Vật có MaterialPropertyBlock không tương thích SRP Batcher nên bị vẽ từng cái (Draw Mesh) thay vì gom vào SRP Batch. Material riêng cho mỗi vật vẫn đi SRP Batcher vì nó gom theo shader, nhưng tốn bộ nhớ và công cập nhật. renderer.material tạo bản sao âm thầm; dùng sharedMaterial khi không cần đổi riêng.";
             if (id == "B04") return "Dynamic Batching sao chép đỉnh của các mesh nhỏ cùng material vào một bộ đệm chung mỗi frame, rồi vẽ một lần (dòng Draw Dynamic). Đổi lại CPU tự biến đổi đỉnh, nên có thể không nhanh hơn. Mesh trên 300 đỉnh không ghép được. Lab tắt SRP Batcher vì khi bật, URP đi đường SRP Batcher.";
             return "SRP Batcher giữ dữ liệu material sẵn để CPU chuẩn bị mỗi draw rẻ hơn. Mỗi SRP Batch có thể chứa nhiều draw; hãy so thêm CPU khi debugger đã tắt.";
         }

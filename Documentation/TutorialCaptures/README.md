@@ -50,3 +50,7 @@ Lúc chụp material, trạng thái gập/mở mục của URP/Lit (`EditorPrefs
 | `b04-out-urp.png`, `-adv`, `-on` | Inspector URP Asset: gập → Show Additional Properties → Dynamic Batching tick, SRP Batcher bỏ tick |
 
 Ảnh `-on` chụp khi tạm đặt `supportsDynamicBatching=true` và `useSRPBatcher=false` trên asset; đã trả lại giá trị cũ. Chưa có clip Profiler cho B04.
+
+## B05 · Shared / Unique / MaterialPropertyBlock
+
+Ảnh `b05-*.png` cùng cách chụp như B04 (500 khối, Windows/DX12). Game view lần này rộng 413 px nên vùng cắt (`main5`) khác B04. Clip so **A Chung** với **C Block** (không phải B Riêng): `b05-a-*` có `DrawSRPBatcher` + 2 dòng `SRP Batch`; `b05-b-*` là Block, 500 dòng `Draw Mesh`. Nút Enable/Disable dùng lại `debugger-off-b04.png`; `debugger-disabled-b05.png` là trạng thái sau Disable. Không có clip Profiler và không có ảnh cho thẻ quét code.

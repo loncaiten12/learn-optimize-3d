@@ -44,5 +44,15 @@
   "b04/enable-b": 2,
   "b04/opaque-b": 3,
   "b04/compare": 3,
-  "b04/out-urp": 3
+  "b04/out-urp": 3,
+  "b05/choose-a": 2,
+  "b05/open": 2,
+  "b05/enable-a": 2,
+  "b05/opaque-a": 2,
+  "b05/draw-a": 2,
+  "b05/disable": 2,
+  "b05/choose-b": 2,
+  "b05/enable-b": 2,
+  "b05/opaque-b": 3,
+  "b05/compare": 3
 }

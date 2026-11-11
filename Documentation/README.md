@@ -2,7 +2,7 @@
 
 Lab đo tác động thật của từng kỹ thuật tối ưu render 3D cho mobile, theo `Docs/Unity_3D_Render_Optimization_Benchmark_Spec.md`.
 
-> **Trạng thái:** đã có framework, **B00 Baseline**, **B01 SRP Batcher**, **B02 Static Batching** và **B03 GPU Instancing** và **B04 Dynamic Batching**. Các scene B05–B11 và X01 chưa làm.
+> **Trạng thái:** đã có framework, **B00 Baseline**, **B01 SRP Batcher**, **B02 Static Batching**, **B03 GPU Instancing**, **B04 Dynamic Batching** và **B05 Material Modes**. Các scene B06–B11 và X01 chưa làm.
 > **Chưa có số đo thiết bị.** Mọi bảng kết quả hiện ghi `Not measured`.
 
 ## Môi trường
@@ -16,7 +16,7 @@ Lab đo tác động thật của từng kỹ thuật tối ưu render 3D cho mo
 
 ## Bắt đầu nhanh (Editor)
 
-1. `Tools ▸ Optimization Lab ▸ Tutorial`: cửa sổ nhiệm vụ; chọn bài B00–B04 ở thanh trên.
+1. `Tools ▸ Optimization Lab ▸ Tutorial`: cửa sổ nhiệm vụ; chọn bài B00–B05 ở thanh trên.
 2. `Tools ▸ Optimization Lab ▸ Generate All Scenes`: dựng `Assets/OptimizationLab/Scenes/B00_Baseline.unity` và thêm vào Build Settings.
 3. `Tools ▸ Optimization Lab ▸ Validate Scenes`: ghi bảng kiểm tra vào `Results/validation_*.md`.
 4. Mở B00, đặt Game view về độ phân giải dọc cố định rồi vào Play. Lần đầu sẽ có **tutorial trong game**: bong bóng thoại và khung vàng chỉ vào nút cần bấm, có 8 bước. Muốn xem lại thì bấm **Hướng dẫn**.
@@ -258,7 +258,35 @@ Frame Debugger (ảnh mẫu 500 khối): Tắt có 500 dòng `Draw Mesh Obj_*` t
 
 **Ngoài game:** cửa sổ Tutorial → B04 → **Áp dụng vào project thật**, 3 thẻ có ảnh/GIF thật: (1) URP Asset → Rendering → ⋮ → Show Additional Properties → tick **Dynamic Batching** (nút chỉ bật khi có URP Asset đã tick); (2) SRP Batcher phải tắt, vì nó được ưu tiên; (3) Play → Frame Debugger → thấy `Draw Dynamic`.
 
-### Học bằng hình — B01, B02, B03 và B04
+## B05 — Cách gán màu (Shared / Unique Material / MaterialPropertyBlock)
+
+**B05 dạy gì:** cùng một hình 5 màu có ba cách gán màu, và mỗi cách đi đường vẽ khác nhau. MaterialPropertyBlock đổi màu tiện nhưng làm vật đó **không tương thích SRP Batcher**; material riêng cho từng vật vẫn đi SRP Batcher nhưng tốn bộ nhớ.
+
+Mở `Assets/OptimizationLab/Scenes/B05_MaterialModes.unity` hoặc chọn B05 trong `Tools ▸ Optimization Lab ▸ Tutorial`.
+
+| Variant | Nội dung |
+|---|---|
+| A `Chung` (`SharedMaterials`) | 5 shared material, gán `renderer.sharedMaterial` |
+| B `Riêng` (`UniqueMaterials`) | Mỗi khối một bản sao material, tạo ở Setup (không tạo trong lúc đo) |
+| C `Block` (`MaterialPropertyBlock`) | 1 shared material + MaterialPropertyBlock đặt `_BaseColor` cho từng khối |
+
+300 / 500 / 1000 khối, cùng seed và cùng bộ màu theo slot; hình giống hệt ở cả ba variant. **SRP Batcher bật ở mọi variant** (đó là chỗ bài thử); dynamic batching và instancing tắt, thoát Play sẽ trả lại. Variant D (instanced colors) theo spec **chưa làm**.
+
+Kiểm cơ chế trong Editor (Windows, DX12, URP, 500 khối, chỉ để hiểu bài, **không** phải số đo thiết bị):
+
+| | Material instance | Lần vẽ | SetPass |
+|---|---:|---:|---:|
+| A Chung | 5 | ~980 | 12 |
+| B Riêng | 500 | ~990 | 12 |
+| C Block | 1 | ~1008 | 829 |
+
+CPU vẽ trong Editor dao động (A ~1,9–2,9 ms, B ~1,6–2,1 ms, C ~5–10 ms) nên chỉ kết luận được C tốn hơn rõ rệt; chênh lệch A/B phải đo bằng nút **Đo** (FULL) trên máy thật. Số bộ nhớ material của B chưa được đo riêng.
+
+Frame Debugger (ảnh mẫu 500 khối): Chung có `RenderLoop.DrawSRPBatcher` với 2 dòng `SRP Batch`; Block có 500 dòng `Draw Mesh Obj_*` trong `RenderLoop.Draw`. Bài học so A với C.
+
+**Ngoài game:** cửa sổ Tutorial → B05 → **Áp dụng vào project thật**, 3 thẻ: (1) quét code project tìm `.material` / `SetPropertyBlock` (bỏ thư mục OptimizationLab); (2) xem SRP Batcher của từng URP Asset; (3) Play → Frame Debugger → so SRP Batch với Draw Mesh.
+
+### Học bằng hình — B01 đến B05
 
 Mở **Tools → Optimization Lab → Tutorial**, chọn B01, B02 hoặc B03 rồi bấm **Bắt đầu chơi**.
 

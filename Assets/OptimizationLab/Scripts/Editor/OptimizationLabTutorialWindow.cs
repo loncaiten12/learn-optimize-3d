@@ -34,6 +34,7 @@ namespace OptimizationLab.Editor
             new Lesson("B02", "Bài 3 · Ghép vật đứng yên", OptimizationLabSceneGenerator.B02_SCENE),
             new Lesson("B03", "Bài 4 · Vẽ nhiều bản sao (GPU Instancing)", OptimizationLabSceneGenerator.B03_SCENE),
             new Lesson("B04", "Bài 5 · Ghép vật nhỏ (Dynamic Batching)", OptimizationLabSceneGenerator.B04_SCENE),
+            new Lesson("B05", "Bài 6 · Cách gán màu (Material / MPB)", OptimizationLabSceneGenerator.B05_SCENE),
         };
         private const int QUEST_COUNT = 5;
 
@@ -93,12 +94,12 @@ namespace OptimizationLab.Editor
             GUILayout.Space(6);
             GUILayout.Label(Current.Title, _title);
 
-            if (Current.Id == "B01" || Current.Id == "B02" || Current.Id == "B03" || Current.Id == "B04")
+            if (Current.Id == "B01" || Current.Id == "B02" || Current.Id == "B03" || Current.Id == "B04" || Current.Id == "B05")
             {
                 _debuggerGuide.Draw(Current.Id);
                 GUILayout.Space(12);
                 _showOutside = EditorGUILayout.Foldout(_showOutside, "Áp dụng vào project thật", true);
-                if (_showOutside) { if (Current.Id == "B01") DrawSrpBatcherGuide(); else if (Current.Id == "B02") DrawStaticBatchingGuide(); else if (Current.Id == "B03") DrawInstancingGuide(); else DrawDynamicBatchingGuide(); }
+                if (_showOutside) { if (Current.Id == "B01") DrawSrpBatcherGuide(); else if (Current.Id == "B02") DrawStaticBatchingGuide(); else if (Current.Id == "B03") DrawInstancingGuide(); else if (Current.Id == "B04") DrawDynamicBatchingGuide(); else DrawMaterialModeGuide(); }
                 _showTools = EditorGUILayout.Foldout(_showTools, "Công cụ nâng cao", true);
                 if (_showTools) DrawTools();
                 _showSetup = EditorGUILayout.Foldout(_showSetup, "Thiết lập scene", true);
@@ -446,6 +447,116 @@ namespace OptimizationLab.Editor
                 case 0: return "Dynamic Batching sao chép đỉnh của các mesh nhỏ cùng material vào một bộ đệm chung mỗi frame. Chỉ mesh dưới 300 đỉnh mới ghép được.";
                 case 1: return "Lab tắt SRP Batcher ở mọi chế độ của B04 để nhìn riêng dynamic batching; thoát Play sẽ trả lại. Đổi gì cũng phải đo trên máy thật.";
                 default: return "Dòng Draw Dynamic là một lần vẽ nhiều khối đã ghép. Frame Debugger không đo tốc độ: CPU còn phải tự biến đổi đỉnh nên chưa chắc nhanh hơn.";
+            }
+        }
+
+        /// <summary>"Ngoài game" B05: quét code project tìm renderer.material / SetPropertyBlock, xem SRP Batcher, kiểm Frame Debugger.</summary>
+        private void DrawMaterialModeGuide()
+        {
+            GUILayout.Space(14);
+            GUILayout.Label("Ngoài game: kiểm cách gán màu trong project", _title);
+            bool[] done = { Quest(10), Quest(11), Quest(12) };
+            int active = System.Array.IndexOf(done, false);
+            string[] labels =
+            {
+                "Quét code: renderer.material / SetPropertyBlock",
+                "SRP Batcher của project",
+                "Frame Debugger: SRP Batch hay Draw Mesh",
+            };
+            for (int i = 0; i < labels.Length; i++)
+                QuestRow(i, done, active, labels[i], i == active ? "Đang làm" : done[i] ? "Xem lại" : "—", () => ShowOutsideStep(i));
+
+            int shown = _outsideStep >= 0 ? _outsideStep : active;
+            if (shown < 0)
+            {
+                GUILayout.Label("★ ★ ★   Đã kiểm xong project!", _big);
+                GUILayout.Label("Quy tắc: dùng sharedMaterial khi không cần đổi riêng. Block đổi màu tiện nhưng làm vật rời SRP Batcher. Đo trên máy thật trước khi đổi.", _hint);
+                return;
+            }
+            GUILayout.Space(6);
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                switch (shown)
+                {
+                    case 0: MaterialStepScan(); break;
+                    case 1: MaterialStepSrp(); break;
+                    default:
+                        OutsideCard("b05", "Kiểm: SRP Batch hay Draw Mesh từng khối",
+                            "Vào Play → Frame Debugger → Enable → mở DrawOpaqueObjects → RenderLoop.",
+                            "opaque-b", "Ảnh mẫu: B05 · 500 khối · Frame Debugger Windows/DX12. Chung: vài dòng SRP Batch. Block: 500 dòng Draw Mesh.");
+                        OutsideDebuggerActions("Tôi thấy khác biệt →");
+                        break;
+                }
+                _outsideWhy = EditorGUILayout.Foldout(_outsideWhy, "Vì sao?", true);
+                if (_outsideWhy) GUILayout.Label(MaterialWhy(shown), _hint);
+            }
+        }
+
+        [System.NonSerialized] private string[] _scanHits;
+        [System.NonSerialized] private int _scanFiles;
+
+        private void MaterialStepScan()
+        {
+            OutsideCard("b05", "Tìm chỗ tạo bản sao material hoặc dùng block",
+                "renderer.material âm thầm tạo một bản sao material cho mỗi vật. SetPropertyBlock làm vật đó không đi SRP Batcher. Bấm quét để xem project của bạn có dùng không.",
+                null, null);
+            if (GUILayout.Button("Quét code trong Assets (bỏ OptimizationLab)", GUILayout.Height(30))) ScanProjectCode();
+            if (_scanHits != null)
+            {
+                EditorGUILayout.HelpBox(_scanHits.Length == 0
+                    ? $"Quét {_scanFiles} file .cs: không thấy chỗ nào đáng ngờ."
+                    : $"Quét {_scanFiles} file .cs: {_scanHits.Length} chỗ cần kiểm (hiện tối đa 8).", MessageType.Info);
+                for (int i = 0; i < Mathf.Min(8, _scanHits.Length); i++) GUILayout.Label(_scanHits[i], _hint);
+            }
+            using (new EditorGUI.DisabledScope(_scanHits == null))
+                if (GUILayout.Button("Đã xem kết quả →", GUILayout.Height(36))) CompleteOutsideStep(10);
+            if (_scanHits == null) GUILayout.Label("Bấm quét trước.", _hint);
+        }
+
+        private void ScanProjectCode()
+        {
+            var hits = new System.Collections.Generic.List<string>();
+            var rx = new System.Text.RegularExpressions.Regex(@"\.(material|materials)\b(?!\s*=\s*null)|SetPropertyBlock");
+            string[] files = System.IO.Directory.GetFiles(Application.dataPath, "*.cs", System.IO.SearchOption.AllDirectories);
+            int scanned = 0;
+            foreach (string f in files)
+            {
+                string rel = f.Replace('\\', '/');
+                if (rel.Contains("/OptimizationLab/")) continue;
+                scanned++;
+                string[] lines = System.IO.File.ReadAllLines(f);
+                for (int i = 0; i < lines.Length; i++)
+                    if (rx.IsMatch(lines[i])) hits.Add($"{System.IO.Path.GetFileName(f)}:{i + 1}  {lines[i].Trim()}");
+            }
+            _scanFiles = scanned;
+            _scanHits = hits.ToArray();
+        }
+
+        private void MaterialStepSrp()
+        {
+            OutsideCard("b05", "SRP Batcher gom theo shader variant",
+                "Nhiều material khác màu nhưng cùng shader variant vẫn gom được vào SRP Batch. MaterialPropertyBlock thì không.",
+                null, null);
+            foreach (UniversalRenderPipelineAsset a in ProjectUrpAssets())
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Label($"{a.name}: SRP Batcher {(a.useSRPBatcher ? "BẬT" : "tắt")}", _cardBody, GUILayout.ExpandWidth(true));
+                    if (GUILayout.Button("Chọn", EditorStyles.miniButton, GUILayout.Width(60)))
+                    { Selection.activeObject = a; EditorGUIUtility.PingObject(a); }
+                }
+            }
+            GUILayout.Label("Nếu SRP Batcher đang bật, tránh block cho nhiều vật; nếu thật cần đổi màu riêng, cân nhắc material riêng hoặc instancing, rồi đo trên máy thật.", _hint);
+            if (GUILayout.Button("Đã hiểu: project mình đi đường nào →", GUILayout.Height(36))) CompleteOutsideStep(11);
+        }
+
+        private static string MaterialWhy(int step)
+        {
+            switch (step)
+            {
+                case 0: return "renderer.material tạo bản sao material ngay lần đầu đọc (Unity cảnh báo khi leak). sharedMaterial dùng chung. Block không tạo material nhưng làm vật không đi SRP Batcher.";
+                case 1: return "Lab bật SRP Batcher ở mọi chế độ của B05 để so ba cách; thoát Play sẽ trả lại. Không có cách nào luôn nhanh nhất: đo trên máy thật.";
+                default: return "Frame Debugger không đo tốc độ. Vài dòng SRP Batch nghĩa là CPU chuẩn bị rẻ; 500 dòng Draw Mesh nghĩa là mỗi vật một lần vẽ riêng.";
             }
         }
 

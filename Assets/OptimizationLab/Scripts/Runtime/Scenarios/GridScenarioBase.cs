@@ -62,6 +62,9 @@ namespace OptimizationLab.Scenarios
         /// <summary>Material của object thứ <paramref name="index"/>. Mặc định theo slot; bài con có thể cho mỗi object một material riêng.</summary>
         protected virtual Material MaterialForObject(int index, int slot, BenchmarkVariant variant) => MaterialFor(slot, variant);
 
+        /// <summary>Slot material (theo seed) của object thứ <paramref name="index"/>; hợp lệ sau Setup.</summary>
+        protected int SlotOf(int index) => _slots[index];
+
         /// <summary>Số slot material để chia object (mặc định = số material).</summary>
         protected virtual int SlotCount => Mathf.Max(1, materials.Length);
 
@@ -70,6 +73,9 @@ namespace OptimizationLab.Scenarios
 
         /// <summary>Trả setting toàn cục về như cũ.</summary>
         protected virtual void RestoreGlobals() { }
+
+        /// <summary>Variant này có gắn MaterialPropertyBlock lên mọi renderer không (mặc định: không).</summary>
+        protected virtual bool ExpectsPropertyBlock(BenchmarkVariant variant) => false;
 
         /// <summary>Kiểm thêm điều kiện riêng của bài.</summary>
         protected virtual BenchmarkStatus ValidateVariant(out string reason)
@@ -103,7 +109,7 @@ namespace OptimizationLab.Scenarios
             }
             into["materials"] = $"{names.Count}: {string.Join(", ", names)}";
             into["shader_variants"] = $"{shaders.Count}: {string.Join(", ", shaders)}";
-            into["material_mode"] = "shared materials (sharedMaterial), no MaterialPropertyBlock";
+            into["material_mode"] = ExpectsPropertyBlock(variant) ? "MaterialPropertyBlock per object" : "shared materials (sharedMaterial), no MaterialPropertyBlock";
             into["shadow_casting"] = "Off";
             into["receive_shadows"] = "false";
             into["spacing"] = spacing.ToString("0.###");
@@ -207,7 +213,8 @@ namespace OptimizationLab.Scenarios
                 MeshRenderer r = _renderers[i];
                 if (r == null) { reason = $"Renderer {i} bị huỷ."; return BenchmarkStatus.Invalid; }
                 if (r.sharedMaterial != MaterialForObject(i, _slots[i], CurrentVariant)) { reason = $"Obj_{i} sai shared material."; return BenchmarkStatus.Invalid; }
-                if (r.HasPropertyBlock()) { reason = $"Obj_{i} có MaterialPropertyBlock (phá SRP Batcher)."; return BenchmarkStatus.Invalid; }
+                bool wantBlock = ExpectsPropertyBlock(CurrentVariant);
+                if (r.HasPropertyBlock() != wantBlock) { reason = wantBlock ? $"Obj_{i} thiếu MaterialPropertyBlock." : $"Obj_{i} có MaterialPropertyBlock (phá SRP Batcher)."; return BenchmarkStatus.Invalid; }
                 if (r.enabled != enabled) { reason = $"Obj_{i} sai trạng thái enabled."; return BenchmarkStatus.Invalid; }
             }
             return ValidateVariant(out reason);

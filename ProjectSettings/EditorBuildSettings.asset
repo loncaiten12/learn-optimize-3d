@@ -21,6 +21,9 @@ EditorBuildSettings:
     path: Assets/OptimizationLab/Scenes/B04_DynamicBatching.unity
     guid: eca2113f606ba004d95e30d3892fb80f
   - enabled: 1
+    path: Assets/OptimizationLab/Scenes/B05_MaterialModes.unity
+    guid: e0677d7c13bb4344c97f99f35f59a8a9
+  - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   m_configObjects:

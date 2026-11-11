@@ -53,6 +53,7 @@ namespace OptimizationLab.Editor
             ValidateB02(checks);
             ValidateB03(checks);
             ValidateB04(checks);
+            ValidateB05(checks);
 
             if (!string.IsNullOrEmpty(previous) && File.Exists(previous)) EditorSceneManager.OpenScene(previous);
             return checks;
@@ -178,6 +179,28 @@ namespace OptimizationLab.Editor
             Add(checks, id, "Max count", "1500", so.FindProperty("maxObjectCount").intValue.ToString(), "Spec: 500–1.500 vật.");
             int folderMats = AssetDatabase.FindAssets("t:Material", new[] { OptimizationLabSceneGenerator.B04_MATERIALS }).Length;
             Add(checks, id, "Material assets (idempotent)", "1", folderMats.ToString(), "Generate chạy lại không nhân đôi material.");
+        }
+
+        private static void ValidateB05(List<Check> checks)
+        {
+            const string id = "B05";
+            string path = OptimizationLabSceneGenerator.B05_SCENE;
+            Add(checks, id, "Scene", "present", File.Exists(path) ? "present" : "missing", "Generate B05.");
+            if (!File.Exists(path)) return;
+            Add(checks, id, "Build Settings", "enabled", EditorBuildSettings.scenes.Any(x => x.path == path && x.enabled) ? "enabled" : "missing", "Scene bài học.");
+            EditorSceneManager.OpenScene(path);
+            var scenario = Object.FindFirstObjectByType<B05MaterialModeScenario>();
+            Add(checks, id, "Scenario", "present", scenario != null ? "present" : "missing", "B05MaterialModeScenario trên node OptimizationLab.");
+            Add(checks, id, "HUD", "present", Object.FindFirstObjectByType<BenchmarkHUD>() != null ? "present" : "missing", "Ba ô live.");
+            if (scenario == null) return;
+            var so = new SerializedObject(scenario);
+            Material[] mats = Materials(so.FindProperty("materials"));
+            Add(checks, id, "Shared materials", "5", mats.Length.ToString(), "Spec: 5 màu.");
+            bool sameShader = mats.Length > 0 && mats.All(m => m != null && m.shader == mats[0].shader && !m.enableInstancing);
+            Add(checks, id, "Cùng shader, instancing off", "true", sameShader ? "true" : "false", "Chỉ khác cách gán màu.");
+            Add(checks, id, "Max count", "1000", so.FindProperty("maxObjectCount").intValue.ToString(), "Camera khung cố định.");
+            int folderMats = AssetDatabase.FindAssets("t:Material", new[] { OptimizationLabSceneGenerator.B05_MATERIALS }).Length;
+            Add(checks, id, "Material assets (idempotent)", "5", folderMats.ToString(), "Generate chạy lại không nhân đôi material.");
         }
 
         private static void ValidateB01(List<Check> checks)

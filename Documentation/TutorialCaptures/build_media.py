@@ -113,5 +113,24 @@ ca.save(out/'b04'/'compare.gif',save_all=True,append_images=[cb],duration=[2200,
 manifest['b04/compare']=3
 urp=(0,80,405,380)
 clip('b04','out-urp',[('b04-out-urp.png',urp,(368,5,36,22)),('b04-out-urp-adv.png',urp,(18,224,380,22)),('b04-out-urp-on.png',urp,[(18,204,380,22),(18,224,380,22)])])
+# B05: Shared / Unique / MaterialPropertyBlock. Compared variants: A (Chung, SRP Batch) vs C (Block, Draw Mesh per object).
+# Same capture setup as B04 (Windows/DX12, 500 objects, Frame Debugger 1016x565, Game view docked portrait).
+(out/'b05').mkdir(parents=True,exist_ok=True)
+main5=(0,300,413,777); fa5=(10,303,128,40); fb5=(277,303,128,40)
+dr_a5=(30,118,300,40)
+clip('b05','choose-a',[('b05-main-b.png',main5,fa5),('b05-main-a.png',main5,fa5)])
+clip('b05','open',[('b05-main-a.png',main5,None),('debugger-off-b04.png',enable4,btn4)])
+clip('b05','enable-a',[('debugger-off-b04.png',enable4,btn4),('b05-a-tree.png',enable4,btn4)])
+clip('b05','opaque-a',[('b05-a-tree.png',tree4,opq4),('b05-a-open.png',tree4,lp4)])
+clip('b05','draw-a',[('b05-a-open.png',tree4,lp4),('b05-a-draws.png',tree4,dr_a5)])
+clip('b05','disable',[('b05-a-draws.png',enable4,btn4),('debugger-disabled-b05.png',enable4,btn4)])
+clip('b05','choose-b',[('b05-main-a.png',main5,fb5),('b05-main-b.png',main5,fb5)])
+clip('b05','enable-b',[('debugger-disabled-b05.png',enable4,btn4),('b05-b-tree.png',enable4,btn4)])
+clip('b05','opaque-b',[('b05-b-tree.png',tree4,opq4),('b05-b-open.png',tree4,lp4),('b05-b-draws.png',tree4,dr_a)])
+ca=frame('b05-a-draws.png',tree4,dr_a5); cb=frame('b05-b-draws.png',tree4,dr_a)
+compare=Image.new('RGB',(1000,600),'#171b23'); compare.paste(ca.resize((500,300)),(0,150)); compare.paste(cb.resize((500,300)),(500,150))
+compare.save(out/'b05'/'compare_0.png',optimize=True); ca.save(out/'b05'/'compare_1.png',optimize=True); cb.save(out/'b05'/'compare_2.png',optimize=True)
+ca.save(out/'b05'/'compare.gif',save_all=True,append_images=[cb],duration=[2200,2200],loop=0)
+manifest['b05/compare']=3
 (out/'media_manifest.json').write_text(json.dumps(manifest,indent=2))
 print('Built',len(manifest),'clips; PNG flipbooks and GIFs from real captures')
