@@ -2,7 +2,7 @@
 
 Lab đo tác động thật của từng kỹ thuật tối ưu render 3D cho mobile, theo `Docs/Unity_3D_Render_Optimization_Benchmark_Spec.md`.
 
-> **Trạng thái:** đã có framework, **B00 Baseline**, **B01 SRP Batcher**, **B02 Static Batching** và **B03 GPU Instancing**. Các scene B04–B11 và X01 chưa làm.
+> **Trạng thái:** đã có framework, **B00 Baseline**, **B01 SRP Batcher**, **B02 Static Batching** và **B03 GPU Instancing** và **B04 Dynamic Batching**. Các scene B05–B11 và X01 chưa làm.
 > **Chưa có số đo thiết bị.** Mọi bảng kết quả hiện ghi `Not measured`.
 
 ## Môi trường
@@ -16,7 +16,7 @@ Lab đo tác động thật của từng kỹ thuật tối ưu render 3D cho mo
 
 ## Bắt đầu nhanh (Editor)
 
-1. `Tools ▸ Optimization Lab ▸ Tutorial`: cửa sổ nhiệm vụ; chọn bài B00, B01 hoặc B02 ở thanh trên.
+1. `Tools ▸ Optimization Lab ▸ Tutorial`: cửa sổ nhiệm vụ; chọn bài B00–B04 ở thanh trên.
 2. `Tools ▸ Optimization Lab ▸ Generate All Scenes`: dựng `Assets/OptimizationLab/Scenes/B00_Baseline.unity` và thêm vào Build Settings.
 3. `Tools ▸ Optimization Lab ▸ Validate Scenes`: ghi bảng kiểm tra vào `Results/validation_*.md`.
 4. Mở B00, đặt Game view về độ phân giải dọc cố định rồi vào Play. Lần đầu sẽ có **tutorial trong game**: bong bóng thoại và khung vàng chỉ vào nút cần bấm, có 8 bước. Muốn xem lại thì bấm **Hướng dẫn**.
@@ -228,7 +228,37 @@ Frame Debugger (ảnh mẫu 300 khối): Thường có 300 dòng `Draw Mesh Obj_
 
 Vẽ bằng code: `Graphics.RenderMeshInstanced(rparams, mesh, 0, matrices)`. Cách này không có collider, chọn vật hay culling từng vật như MeshRenderer; lab chưa có variant cho nó.
 
-### Học bằng hình — B01, B02 và B03
+## B04 — Ghép vật nhỏ (Dynamic Batching)
+
+**B04 dạy gì:** Dynamic Batching ghép các mesh **nhỏ** (dưới 300 đỉnh) cùng material thành ít lệnh vẽ hơn bằng cách CPU sao chép và biến đổi đỉnh mỗi frame. Ít lệnh vẽ **chưa chắc** nhanh hơn: CPU làm thêm việc.
+
+Mở `Assets/OptimizationLab/Scenes/B04_DynamicBatching.unity` hoặc chọn B04 trong `Tools ▸ Optimization Lab ▸ Tutorial`.
+
+| Variant | Nội dung |
+|---|---|
+| A `Tắt` (`DynamicBatchingOff`) | URP Asset `supportsDynamicBatching = false`, Cube 24 đỉnh, 1 material `OL_B04_Shared` |
+| B `Bật` (`DynamicBatchingOn`) | Giống A, chỉ khác dynamic batching **bật** |
+| C `Mesh lớn` (`DynamicBatchingOnHeavyMesh`) | Bật nhưng dùng Sphere 515 đỉnh (> 300): không ghép được. Variant **giáo dục**, không dùng để so tốc độ |
+
+500 / 1000 / 1500 khối, cùng seed, camera khung theo 1500 khối. **SRP Batcher và GPU instancing tắt ở mọi variant** (cả hai được ưu tiên hơn dynamic batching); thoát Play sẽ trả lại cài đặt. Bài so phụ "SRP Batcher bật" theo spec **chưa làm**.
+
+Kiểm cơ chế trong Editor (Windows, DX12, URP, chỉ để hiểu bài, **không** phải số đo thiết bị):
+
+| | Khối | Lần vẽ | Batches |
+|---|---:|---:|---:|
+| A Tắt | 1000 | ~2000 | ~1890 |
+| B Bật | 1000 | 17 | 16–17 |
+| C Mesh lớn | 1000 | ~2000 | ~1940 |
+| A Tắt | 500 | 1006 | 999–1006 |
+| B Bật | 500 | 13 | 13 |
+
+CPU vẽ trong Editor dao động (B ~0,9 ms, A 1,0–2,2 ms) nên **chưa kết luận được**; phải đo bằng nút **Đo** (FULL) trên máy thật.
+
+Frame Debugger (ảnh mẫu 500 khối): Tắt có 500 dòng `Draw Mesh Obj_*` trong `RenderLoop.Draw`; Bật còn 2 dòng `Draw Dynamic`.
+
+**Ngoài game:** cửa sổ Tutorial → B04 → **Áp dụng vào project thật**, 3 thẻ có ảnh/GIF thật: (1) URP Asset → Rendering → ⋮ → Show Additional Properties → tick **Dynamic Batching** (nút chỉ bật khi có URP Asset đã tick); (2) SRP Batcher phải tắt, vì nó được ưu tiên; (3) Play → Frame Debugger → thấy `Draw Dynamic`.
+
+### Học bằng hình — B01, B02, B03 và B04
 
 Mở **Tools → Optimization Lab → Tutorial**, chọn B01, B02 hoặc B03 rồi bấm **Bắt đầu chơi**.
 

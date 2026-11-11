@@ -52,6 +52,7 @@ namespace OptimizationLab.Editor
             ValidateB01(checks);
             ValidateB02(checks);
             ValidateB03(checks);
+            ValidateB04(checks);
 
             if (!string.IsNullOrEmpty(previous) && File.Exists(previous)) EditorSceneManager.OpenScene(previous);
             return checks;
@@ -150,6 +151,33 @@ namespace OptimizationLab.Editor
             Add(checks, id, "Max count", "3000", so.FindProperty("maxObjectCount").intValue.ToString(), "Camera khung cố định theo 3000 khối.");
             int folderMats = AssetDatabase.FindAssets("t:Material", new[] { OptimizationLabSceneGenerator.B03_MATERIALS }).Length;
             Add(checks, id, "Material assets (idempotent)", "2", folderMats.ToString(), "Generate chạy lại không nhân đôi material.");
+        }
+
+        private static void ValidateB04(List<Check> checks)
+        {
+            const string id = "B04";
+            string path = OptimizationLabSceneGenerator.B04_SCENE;
+            Add(checks, id, "Scene", "present", File.Exists(path) ? "present" : "missing", "Generate B04.");
+            if (!File.Exists(path)) return;
+            Add(checks, id, "Build Settings", "enabled", EditorBuildSettings.scenes.Any(x => x.path == path && x.enabled) ? "enabled" : "missing", "Scene bài học.");
+            EditorSceneManager.OpenScene(path);
+            var scenario = Object.FindFirstObjectByType<B04DynamicBatchingScenario>();
+            Add(checks, id, "Scenario", "present", scenario != null ? "present" : "missing", "B04DynamicBatchingScenario trên node OptimizationLab.");
+            Add(checks, id, "HUD", "present", Object.FindFirstObjectByType<BenchmarkHUD>() != null ? "present" : "missing", "Ba ô live.");
+            if (scenario == null) return;
+            var so = new SerializedObject(scenario);
+            Material[] mats = Materials(so.FindProperty("materials"));
+            Add(checks, id, "Shared material", "1, instancing off", mats.Length == 1 && mats[0] != null && !mats[0].enableInstancing ? "1, instancing off" : "sai",
+                "Cùng material; instancing được ưu tiên hơn dynamic batching nên phải tắt.");
+            var mesh = so.FindProperty("mesh").objectReferenceValue as Mesh;
+            Add(checks, id, "Mesh A/B", "< 300 verts", mesh != null && mesh.vertexCount < B04DynamicBatchingScenario.DYNAMIC_BATCH_VERTEX_LIMIT ? "< 300 verts" : "sai",
+                "Mesh nhỏ mới ghép được.");
+            var heavy = so.FindProperty("heavyMesh").objectReferenceValue as Mesh;
+            Add(checks, id, "Mesh C", "> 300 verts", heavy != null && heavy.vertexCount > B04DynamicBatchingScenario.DYNAMIC_BATCH_VERTEX_LIMIT ? "> 300 verts" : "sai/missing",
+                "Variant giáo dục: vượt giới hạn đỉnh.");
+            Add(checks, id, "Max count", "1500", so.FindProperty("maxObjectCount").intValue.ToString(), "Spec: 500–1.500 vật.");
+            int folderMats = AssetDatabase.FindAssets("t:Material", new[] { OptimizationLabSceneGenerator.B04_MATERIALS }).Length;
+            Add(checks, id, "Material assets (idempotent)", "1", folderMats.ToString(), "Generate chạy lại không nhân đôi material.");
         }
 
         private static void ValidateB01(List<Check> checks)

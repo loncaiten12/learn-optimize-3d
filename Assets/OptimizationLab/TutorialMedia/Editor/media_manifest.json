@@ -33,5 +33,16 @@
   "b03/opaque-b": 3,
   "b03/compare": 3,
   "b03/out-material": 3,
-  "b03/out-profiler": 3
+  "b03/out-profiler": 3,
+  "b04/choose-a": 2,
+  "b04/open": 2,
+  "b04/enable-a": 2,
+  "b04/opaque-a": 2,
+  "b04/draw-a": 2,
+  "b04/disable": 2,
+  "b04/choose-b": 2,
+  "b04/enable-b": 2,
+  "b04/opaque-b": 3,
+  "b04/compare": 3,
+  "b04/out-urp": 3
 }

@@ -36,3 +36,17 @@ Toàn bộ ảnh B03 chụp bằng `GUIView.GrabPixels` (2x, 300 khối, PC/Meta
 | `b03-out-profiler-a/b.png` | Profiler ▸ Rendering: (Instancing) 0 → Batched Draw Calls 600, Batches 4 |
 
 Lúc chụp material, trạng thái gập/mở mục của URP/Lit (`EditorPrefs` `CoreRP:Material:UI_State:Universal Render Pipeline/Lit`) được đổi tạm rồi trả lại giá trị cũ.
+
+## B04 · Dynamic Batching
+
+Ảnh `b04-*.png` chụp trên Windows/DX12 qua cầu nối Unity MCP (`screenshot/editor-window`), 500 khối. Cây Frame Debugger được mở bằng code (reflection) để chụp. Ảnh Game view là panel dọc nên nhỏ hơn b01–b03; toạ độ vùng cắt khác b03.
+
+| Ảnh | Nội dung |
+|---|---|
+| `b04-main-a/b.png` | Game view: Tắt 1006 lần vẽ → Bật 13 |
+| `b04-a-tree/open/draws.png` | Frame Debugger, Tắt: 500 dòng `Draw Mesh Obj_*` |
+| `b04-b-tree/open/draws.png` | Frame Debugger, Bật: 2 dòng `Draw Dynamic` |
+| `debugger-off-b04.png`, `debugger-disabled-b04.png` | Nút Enable / Disable |
+| `b04-out-urp.png`, `-adv`, `-on` | Inspector URP Asset: gập → Show Additional Properties → Dynamic Batching tick, SRP Batcher bỏ tick |
+
+Ảnh `-on` chụp khi tạm đặt `supportsDynamicBatching=true` và `useSRPBatcher=false` trên asset; đã trả lại giá trị cũ. Chưa có clip Profiler cho B04.

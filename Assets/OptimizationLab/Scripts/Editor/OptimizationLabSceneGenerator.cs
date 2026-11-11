@@ -34,6 +34,9 @@ namespace OptimizationLab.Editor
         public const string B03_MATERIALS = MATERIALS + "/B03";
         public const string B03_PLAIN_MATERIAL = B03_MATERIALS + "/OL_B03_Plain.mat";
         public const string B03_INSTANCED_MATERIAL = B03_MATERIALS + "/OL_B03_Instanced.mat";
+        public const string B04_SCENE = SCENES + "/B04_DynamicBatching.unity";
+        public const string B04_MATERIALS = MATERIALS + "/B04";
+        public const string B04_MATERIAL = B04_MATERIALS + "/OL_B04_Shared.mat";
         public const string B01_SCENE = SCENES + "/B01_SRPBatcher.unity";
         public const string B00_MATERIALS = MATERIALS + "/B00";
         public const string B01_MATERIALS = MATERIALS + "/B01";
@@ -62,7 +65,7 @@ namespace OptimizationLab.Editor
         /// <summary>Thứ tự scene lab trong Build Settings (Menu, B00–B11). Scene chưa có thì bỏ qua.</summary>
         public static readonly string[] SceneOrder =
         {
-            SCENES + "/BenchmarkMenu.unity", B00_SCENE, B01_SCENE, B02_SCENE, B03_SCENE,
+            SCENES + "/BenchmarkMenu.unity", B00_SCENE, B01_SCENE, B02_SCENE, B03_SCENE, B04_SCENE,
         };
 
         private static readonly Color BACKGROUND = new Color(0.08f, 0.09f, 0.11f);
@@ -93,6 +96,7 @@ namespace OptimizationLab.Editor
             GenerateB01Internal();
             GenerateB02Internal();
             GenerateB03Internal();
+            GenerateB04Internal();
             UpdateBuildSettings();
             AssetDatabase.SaveAssets();
             EditorSceneManager.OpenScene(B00_SCENE);
@@ -182,6 +186,33 @@ namespace OptimizationLab.Editor
             {
                 SetArray(scenario, "materials", new Object[] { plain });
                 Set(scenario, "instancedMaterial", instanced);
+            });
+        }
+
+        [MenuItem("Tools/Optimization Lab/Scenes/Generate B04 Dynamic Batching", priority = 24)]
+        public static void GenerateB04()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            GenerateB04Internal();
+            UpdateBuildSettings();
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>B04: một material, instancing tắt, Cube (24 đỉnh); Sphere (515 đỉnh) cho variant giáo dục.</summary>
+        private static void GenerateB04Internal()
+        {
+            PrepareProject();
+            Material mat = EnsureLitMaterial(B04_MATERIAL, B01_COLORS[3]);
+            mat.enableInstancing = false;
+            EditorUtility.SetDirty(mat);
+            Mesh sphere = Resources.GetBuiltinResource<Mesh>("Sphere.fbx");
+            BuildLessonScene<B04DynamicBatchingScenario>(B04_SCENE, 3, 3, scenario =>
+            {
+                SetArray(scenario, "materials", new Object[] { mat });
+                Set(scenario, "heavyMesh", sphere);
+                var so = new SerializedObject(scenario);
+                so.FindProperty("maxObjectCount").intValue = 1500;
+                so.ApplyModifiedPropertiesWithoutUndo();
             });
         }
 
@@ -651,7 +682,7 @@ namespace OptimizationLab.Editor
 
         private static void EnsureFolders()
         {
-            foreach (string path in new[] { ROOT, SCENES, MATERIALS, B00_MATERIALS, B01_MATERIALS, B02_MATERIALS, B03_MATERIALS, RESOURCES })
+            foreach (string path in new[] { ROOT, SCENES, MATERIALS, B00_MATERIALS, B01_MATERIALS, B02_MATERIALS, B03_MATERIALS, B04_MATERIALS, RESOURCES })
             {
                 if (AssetDatabase.IsValidFolder(path)) continue;
                 string parent = Path.GetDirectoryName(path)?.Replace('\\', '/');

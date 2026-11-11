@@ -33,6 +33,7 @@ namespace OptimizationLab.Editor
             new Lesson("B01", "Bài 2 · SRP Batcher", OptimizationLabSceneGenerator.B01_SCENE),
             new Lesson("B02", "Bài 3 · Ghép vật đứng yên", OptimizationLabSceneGenerator.B02_SCENE),
             new Lesson("B03", "Bài 4 · Vẽ nhiều bản sao (GPU Instancing)", OptimizationLabSceneGenerator.B03_SCENE),
+            new Lesson("B04", "Bài 5 · Ghép vật nhỏ (Dynamic Batching)", OptimizationLabSceneGenerator.B04_SCENE),
         };
         private const int QUEST_COUNT = 5;
 
@@ -92,12 +93,12 @@ namespace OptimizationLab.Editor
             GUILayout.Space(6);
             GUILayout.Label(Current.Title, _title);
 
-            if (Current.Id == "B01" || Current.Id == "B02" || Current.Id == "B03")
+            if (Current.Id == "B01" || Current.Id == "B02" || Current.Id == "B03" || Current.Id == "B04")
             {
                 _debuggerGuide.Draw(Current.Id);
                 GUILayout.Space(12);
                 _showOutside = EditorGUILayout.Foldout(_showOutside, "Áp dụng vào project thật", true);
-                if (_showOutside) { if (Current.Id == "B01") DrawSrpBatcherGuide(); else if (Current.Id == "B02") DrawStaticBatchingGuide(); else DrawInstancingGuide(); }
+                if (_showOutside) { if (Current.Id == "B01") DrawSrpBatcherGuide(); else if (Current.Id == "B02") DrawStaticBatchingGuide(); else if (Current.Id == "B03") DrawInstancingGuide(); else DrawDynamicBatchingGuide(); }
                 _showTools = EditorGUILayout.Foldout(_showTools, "Công cụ nâng cao", true);
                 if (_showTools) DrawTools();
                 _showSetup = EditorGUILayout.Foldout(_showSetup, "Thiết lập scene", true);
@@ -354,6 +355,97 @@ namespace OptimizationLab.Editor
                 }
                 _outsideWhy = EditorGUILayout.Foldout(_outsideWhy, "Vì sao?", true);
                 if (_outsideWhy) GUILayout.Label(InstancingWhy(shown), _hint);
+            }
+        }
+
+        /// <summary>"Ngoài game" B04: bật Dynamic Batching trong URP Asset, hiểu SRP Batcher được ưu tiên, kiểm Frame Debugger.</summary>
+        private void DrawDynamicBatchingGuide()
+        {
+            GUILayout.Space(14);
+            GUILayout.Label("Ngoài game: bật Dynamic Batching", _title);
+            bool[] done = { Quest(10), Quest(11), Quest(12) };
+            int active = System.Array.IndexOf(done, false);
+            string[] labels =
+            {
+                "URP Asset: tick Dynamic Batching",
+                "SRP Batcher phải tắt",
+                "Frame Debugger: thấy Draw Dynamic",
+            };
+            for (int i = 0; i < labels.Length; i++)
+                QuestRow(i, done, active, labels[i], i == active ? "Đang làm" : done[i] ? "Xem lại" : "—", () => ShowOutsideStep(i));
+
+            int shown = _outsideStep >= 0 ? _outsideStep : active;
+            if (shown < 0)
+            {
+                GUILayout.Label("★ ★ ★   Đã áp dụng được vào project!", _big);
+                GUILayout.Label("Nhớ: ít lệnh vẽ không bằng nhanh hơn. Đo trên máy thật rồi mới giữ lại. Mesh trên 300 đỉnh hoặc scale âm/không đều thì không ghép.", _hint);
+                return;
+            }
+            GUILayout.Space(6);
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                switch (shown)
+                {
+                    case 0: DynamicStepAsset(); break;
+                    case 1: DynamicStepSrp(); break;
+                    default:
+                        OutsideCard("b04", "Kiểm: nhóm vẽ có dòng Draw Dynamic",
+                            "Vào Play → Frame Debugger → Enable → mở DrawOpaqueObjects → RenderLoop.Draw.",
+                            "opaque-b", "Ảnh mẫu: B04 · 500 khối · Frame Debugger Windows/DX12. Tắt thì 500 dòng Draw Mesh, bật thì 2 dòng Draw Dynamic.");
+                        OutsideDebuggerActions("Tôi thấy Draw Dynamic →");
+                        break;
+                }
+                _outsideWhy = EditorGUILayout.Foldout(_outsideWhy, "Vì sao?", true);
+                if (_outsideWhy) GUILayout.Label(DynamicWhy(shown), _hint);
+            }
+        }
+
+        private void DynamicStepAsset()
+        {
+            OutsideCard("b04", "Tick Dynamic Batching trong URP Asset",
+                "Chọn URP Asset → Inspector → Rendering → ⋮ → Show Additional Properties → tick Dynamic Batching (và bỏ tick SRP Batcher).",
+                "out-urp", "Ảnh mẫu: PC_RP Asset · Unity 6000.3.16f1. Bật ⋮ ▸ Show Additional Properties thì hai ô mới hiện.");
+            bool any = false;
+            foreach (UniversalRenderPipelineAsset a in ProjectUrpAssets())
+            {
+                any |= a.supportsDynamicBatching;
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Label($"{a.name}: Dynamic Batching {(a.supportsDynamicBatching ? "BẬT" : "tắt")}", _cardBody, GUILayout.ExpandWidth(true));
+                    if (GUILayout.Button("Chọn", EditorStyles.miniButton, GUILayout.Width(60)))
+                    { Selection.activeObject = a; EditorGUIUtility.PingObject(a); }
+                }
+            }
+            using (new EditorGUI.DisabledScope(!any))
+                if (GUILayout.Button("Đã tick xong →", GUILayout.Height(36))) CompleteOutsideStep(10);
+            if (!any) GUILayout.Label("Nút chỉ bật khi có URP Asset đã tick Dynamic Batching. Lab tự trả lại cài đặt sau khi thoát Play.", _hint);
+        }
+
+        private void DynamicStepSrp()
+        {
+            OutsideCard("b04", "SRP Batcher được ưu tiên hơn Dynamic Batching",
+                "Khi SRP Batcher bật, URP vẽ vật bằng SRP Batcher và bỏ qua Dynamic Batching. Muốn thấy dynamic, phải tắt SRP Batcher.",
+                null, null);
+            foreach (UniversalRenderPipelineAsset a in ProjectUrpAssets())
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Label($"{a.name}: SRP Batcher {(a.useSRPBatcher ? "BẬT" : "tắt")}", _cardBody, GUILayout.ExpandWidth(true));
+                    if (GUILayout.Button("Chọn", EditorStyles.miniButton, GUILayout.Width(60)))
+                    { Selection.activeObject = a; EditorGUIUtility.PingObject(a); }
+                }
+            }
+            GUILayout.Label("Hầu hết project nên giữ SRP Batcher vì thường đã đủ nhanh. Chỉ đổi khi đo trên máy thật cho thấy dynamic có lợi.", _hint);
+            if (GUILayout.Button("Đã hiểu: project mình đi đường nào →", GUILayout.Height(36))) CompleteOutsideStep(11);
+        }
+
+        private static string DynamicWhy(int step)
+        {
+            switch (step)
+            {
+                case 0: return "Dynamic Batching sao chép đỉnh của các mesh nhỏ cùng material vào một bộ đệm chung mỗi frame. Chỉ mesh dưới 300 đỉnh mới ghép được.";
+                case 1: return "Lab tắt SRP Batcher ở mọi chế độ của B04 để nhìn riêng dynamic batching; thoát Play sẽ trả lại. Đổi gì cũng phải đo trên máy thật.";
+                default: return "Dòng Draw Dynamic là một lần vẽ nhiều khối đã ghép. Frame Debugger không đo tốc độ: CPU còn phải tự biến đổi đỉnh nên chưa chắc nhanh hơn.";
             }
         }
 
