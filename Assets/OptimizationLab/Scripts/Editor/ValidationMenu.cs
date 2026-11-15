@@ -54,6 +54,7 @@ namespace OptimizationLab.Editor
             ValidateB03(checks);
             ValidateB04(checks);
             ValidateB05(checks);
+            ValidateB06(checks);
 
             if (!string.IsNullOrEmpty(previous) && File.Exists(previous)) EditorSceneManager.OpenScene(previous);
             return checks;
@@ -201,6 +202,33 @@ namespace OptimizationLab.Editor
             Add(checks, id, "Max count", "1000", so.FindProperty("maxObjectCount").intValue.ToString(), "Camera khung cố định.");
             int folderMats = AssetDatabase.FindAssets("t:Material", new[] { OptimizationLabSceneGenerator.B05_MATERIALS }).Length;
             Add(checks, id, "Material assets (idempotent)", "5", folderMats.ToString(), "Generate chạy lại không nhân đôi material.");
+        }
+
+        private static void ValidateB06(List<Check> checks)
+        {
+            const string id = "B06";
+            string path = OptimizationLabSceneGenerator.B06_SCENE;
+            Add(checks, id, "Scene", "present", File.Exists(path) ? "present" : "missing", "Generate B06.");
+            if (!File.Exists(path)) return;
+            Add(checks, id, "Build Settings", "enabled", EditorBuildSettings.scenes.Any(x => x.path == path && x.enabled) ? "enabled" : "missing", "Scene bài học.");
+            EditorSceneManager.OpenScene(path);
+            var scenario = Object.FindFirstObjectByType<B06MeshComplexityScenario>();
+            Add(checks, id, "Scenario", "present", scenario != null ? "present" : "missing", "B06MeshComplexityScenario trên node OptimizationLab.");
+            Add(checks, id, "HUD", "present", Object.FindFirstObjectByType<BenchmarkHUD>() != null ? "present" : "missing", "Ba ô live, bốn nút xem.");
+            if (scenario == null) return;
+            var so = new SerializedObject(scenario);
+            Material[] mats = Materials(so.FindProperty("materials"));
+            Add(checks, id, "Shared material", "1, instancing off", mats.Length == 1 && mats[0] != null && !mats[0].enableInstancing ? "1, instancing off" : "sai", "Shader đơn giản, một material.");
+            Add(checks, id, "Max count", "1000", so.FindProperty("maxObjectCount").intValue.ToString(), "Camera khung cố định.");
+            int folderMats = AssetDatabase.FindAssets("t:Material", new[] { OptimizationLabSceneGenerator.B06_MATERIALS }).Length;
+            Add(checks, id, "Material assets (idempotent)", "1", folderMats.ToString(), "Generate chạy lại không nhân đôi material.");
+            Mesh low = ProceduralSphereMesh.Create("t", 12, 6, false), high = ProceduralSphereMesh.Create("t", 100, 50, false), hard = ProceduralSphereMesh.Create("t", 100, 50, true);
+            int lowT = (int)(low.GetIndexCount(0) / 3), highT = (int)(high.GetIndexCount(0) / 3), hardT = (int)(hard.GetIndexCount(0) / 3);
+            Add(checks, id, "Triangles low (~100: 80–150)", "true", lowT >= 80 && lowT <= 150 ? "true" : "false", $"{lowT} tam giác. Spec: low ≈100 tri.");
+            Add(checks, id, "Triangles high (~10k: 8000–12000)", "true", highT >= 8000 && highT <= 12000 ? "true" : "false", $"{highT} tam giác. Spec: high ≈10k tri.");
+            Add(checks, id, "Hard-edge cùng tam giác", highT.ToString(), hardT.ToString(), "Chỉ khác số đỉnh.");
+            Add(checks, id, "Hard-edge nhiều đỉnh hơn", "true", hard.vertexCount > high.vertexCount ? "true" : "false", $"{hard.vertexCount} vs {high.vertexCount}.");
+            Object.DestroyImmediate(low); Object.DestroyImmediate(high); Object.DestroyImmediate(hard);
         }
 
         private static void ValidateB01(List<Check> checks)

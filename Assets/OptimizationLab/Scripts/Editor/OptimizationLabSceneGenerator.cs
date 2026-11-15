@@ -39,6 +39,9 @@ namespace OptimizationLab.Editor
         public const string B04_MATERIAL = B04_MATERIALS + "/OL_B04_Shared.mat";
         public const string B05_SCENE = SCENES + "/B05_MaterialModes.unity";
         public const string B05_MATERIALS = MATERIALS + "/B05";
+        public const string B06_SCENE = SCENES + "/B06_MeshComplexity.unity";
+        public const string B06_MATERIALS = MATERIALS + "/B06";
+        public const string B06_MATERIAL = B06_MATERIALS + "/OL_B06_Shared.mat";
         public const string B01_SCENE = SCENES + "/B01_SRPBatcher.unity";
         public const string B00_MATERIALS = MATERIALS + "/B00";
         public const string B01_MATERIALS = MATERIALS + "/B01";
@@ -67,7 +70,7 @@ namespace OptimizationLab.Editor
         /// <summary>Thứ tự scene lab trong Build Settings (Menu, B00–B11). Scene chưa có thì bỏ qua.</summary>
         public static readonly string[] SceneOrder =
         {
-            SCENES + "/BenchmarkMenu.unity", B00_SCENE, B01_SCENE, B02_SCENE, B03_SCENE, B04_SCENE, B05_SCENE,
+            SCENES + "/BenchmarkMenu.unity", B00_SCENE, B01_SCENE, B02_SCENE, B03_SCENE, B04_SCENE, B05_SCENE, B06_SCENE,
         };
 
         private static readonly Color BACKGROUND = new Color(0.08f, 0.09f, 0.11f);
@@ -100,6 +103,7 @@ namespace OptimizationLab.Editor
             GenerateB03Internal();
             GenerateB04Internal();
             GenerateB05Internal();
+            GenerateB06Internal();
             UpdateBuildSettings();
             AssetDatabase.SaveAssets();
             EditorSceneManager.OpenScene(B00_SCENE);
@@ -243,6 +247,29 @@ namespace OptimizationLab.Editor
             BuildLessonScene<B05MaterialModeScenario>(B05_SCENE, 3, 3, scenario =>
             {
                 SetArray(scenario, "materials", mats);
+                var so = new SerializedObject(scenario);
+                so.FindProperty("maxObjectCount").intValue = 1000;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            });
+        }
+
+        [MenuItem("Tools/Optimization Lab/Scenes/Generate B06 Mesh Complexity", priority = 26)]
+        public static void GenerateB06()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            GenerateB06Internal();
+            UpdateBuildSettings();
+            AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>B06: một material URP/Lit, instancing tắt; mesh cầu procedural tạo lúc chạy.</summary>
+        private static void GenerateB06Internal()
+        {
+            PrepareProject();
+            Material mat = EnsureLitMaterial(B06_MATERIAL, B01_COLORS[1]);
+            BuildLessonScene<B06MeshComplexityScenario>(B06_SCENE, 4, 3, scenario =>
+            {
+                SetArray(scenario, "materials", new Object[] { mat });
                 var so = new SerializedObject(scenario);
                 so.FindProperty("maxObjectCount").intValue = 1000;
                 so.ApplyModifiedPropertiesWithoutUndo();
@@ -441,7 +468,7 @@ namespace OptimizationLab.Editor
                 RectTransform b = Rect($"Btn_Preview{(char)('A' + i)}", rowPreview, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
                 previewTexts[i] = MakeButton(b, ((char)('A' + i)).ToString(), BUTTON, 32, out previewImgs[i],
                     btn => UnityEventTools.AddIntPersistentListener(btn.onClick, hud.PreviewVariant, index));
-                targets[(int)TutorialTarget.PreviewA + i] = b;
+                if (i < 3) targets[(int)TutorialTarget.PreviewA + i] = b; // PreviewD không có target tutorial (index trùng Count0)
             }
 
             // Số khối
@@ -715,7 +742,7 @@ namespace OptimizationLab.Editor
 
         private static void EnsureFolders()
         {
-            foreach (string path in new[] { ROOT, SCENES, MATERIALS, B00_MATERIALS, B01_MATERIALS, B02_MATERIALS, B03_MATERIALS, B04_MATERIALS, B05_MATERIALS, RESOURCES })
+            foreach (string path in new[] { ROOT, SCENES, MATERIALS, B00_MATERIALS, B01_MATERIALS, B02_MATERIALS, B03_MATERIALS, B04_MATERIALS, B05_MATERIALS, B06_MATERIALS, RESOURCES })
             {
                 if (AssetDatabase.IsValidFolder(path)) continue;
                 string parent = Path.GetDirectoryName(path)?.Replace('\\', '/');

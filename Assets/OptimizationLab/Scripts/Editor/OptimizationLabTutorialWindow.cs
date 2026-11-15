@@ -35,6 +35,7 @@ namespace OptimizationLab.Editor
             new Lesson("B03", "Bài 4 · Vẽ nhiều bản sao (GPU Instancing)", OptimizationLabSceneGenerator.B03_SCENE),
             new Lesson("B04", "Bài 5 · Ghép vật nhỏ (Dynamic Batching)", OptimizationLabSceneGenerator.B04_SCENE),
             new Lesson("B05", "Bài 6 · Cách gán màu (Material / MPB)", OptimizationLabSceneGenerator.B05_SCENE),
+            new Lesson("B06", "Bài 7 · Độ chi tiết mesh (Poly / LOD)", OptimizationLabSceneGenerator.B06_SCENE),
         };
         private const int QUEST_COUNT = 5;
 
